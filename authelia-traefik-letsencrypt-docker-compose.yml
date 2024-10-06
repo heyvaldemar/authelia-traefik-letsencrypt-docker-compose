@@ -1,0 +1,200 @@
+# Authelia with Let's Encrypt Using Docker Compose
+
+# The complete installation guide is available on my website https://www.heyvaldemar.com/install-authelia-using-docker-compose/
+
+# Create secret for storing Authelia using the command:
+# `chmod +x generate-authelia-secrets.sh && ./generate-authelia-secrets.sh`
+
+# Change variables in the `.env`, `config/configuration.yml`, and `config/users_database.yml` files to meet your requirements.
+# Update the SMTP settings in `config/configuration.yml` to ensure Authelia functions properly.
+# Authelia relies on these settings for sending email notifications for password resets, two-factor authentication setups, and more.
+# Note that the `.env` file should be in the same directory as `authelia-traefik-letsencrypt-docker-compose.yml`.
+
+# Create networks for your services before deploying the configuration using the commands:
+# `docker network create traefik-network`
+# `docker network create authelia-network`
+
+# Deploy Authelia using Docker Compose:
+# `docker compose -f authelia-traefik-letsencrypt-docker-compose.yml -p authelia up -d`
+
+# # Enabling Authelia with Traefik
+# To integrate Authelia for authentication in your container services managed by Traefik, follow the steps below. This will ensure secure access by requiring authentication through Authelia.
+
+# ## Step 1: Add Authelia Middleware
+# Add the following label to your container configuration to enable Authelia. Replace `your-router-name` with the name of your specific router:
+# `- "traefik.http.routers.your-router-name.middlewares=authelia@docker"`
+
+# ### Example
+# If you are enabling Authelia on a service called "whoami", the label would look like this:
+# `- "traefik.http.routers.whoami.middlewares=authelia@docker"`
+
+# ## Step 2: Adjust for Existing Middlewares
+# If your service already uses other middlewares, append `authelia@docker` to the existing list, separated by a comma:
+# `- "traefik.http.routers.your-router-name.middlewares=existing-middleware,authelia@docker"`
+
+# Author
+# I’m Vladimir Mikhalev, the Docker Captain, but my friends can call me Valdemar.
+# https://www.docker.com/captains/vladimir-mikhalev/
+
+# My website with detailed IT guides: https://www.heyvaldemar.com/
+# Follow me on YouTube: https://www.youtube.com/channel/UCf85kQ0u1sYTTTyKVpxrlyQ?sub_confirmation=1
+# Follow me on Twitter: https://twitter.com/heyValdemar
+# Follow me on Instagram: https://www.instagram.com/heyvaldemar/
+# Follow me on Threads: https://www.threads.net/@heyvaldemar
+# Follow me on Mastodon: https://mastodon.social/@heyvaldemar
+# Follow me on Bluesky: https://bsky.app/profile/heyvaldemar.bsky.social
+# Follow me on Facebook: https://www.facebook.com/heyValdemarFB/
+# Follow me on TikTok: https://www.tiktok.com/@heyvaldemar
+# Follow me on LinkedIn: https://www.linkedin.com/in/heyvaldemar/
+# Follow me on GitHub: https://github.com/heyvaldemar
+
+# Communication
+# Chat with IT pros on Discord: https://discord.gg/AJQGCCBcqf
+# Reach me at ask@sre.gg
+
+# Give Thanks
+# Support on GitHub: https://github.com/sponsors/heyValdemar
+# Support on Patreon: https://www.patreon.com/heyValdemar
+# Support on BuyMeaCoffee: https://www.buymeacoffee.com/heyValdemar
+# Support on Ko-fi: https://ko-fi.com/heyValdemar
+# Support on PayPal: https://www.paypal.com/paypalme/heyValdemarCOM
+
+networks:
+  authelia-network:
+    external: true
+  traefik-network:
+    external: true
+
+volumes:
+  redis-data:
+  authelia-postgres:
+  authelia-postgres-backup:
+  authelia-database-backups:
+  traefik-certificates:
+
+services:
+  postgres:
+    image: ${AUTHELIA_POSTGRES_IMAGE_TAG}
+    volumes:
+      - authelia-postgres:/var/lib/postgresql/data
+      - ./config/secrets/STORAGE_PASSWORD:/run/secrets/storage_password
+    environment:
+      POSTGRES_DB: ${AUTHELIA_DB_NAME}
+      POSTGRES_USER: ${AUTHELIA_DB_USER}
+      POSTGRES_PASSWORD_FILE: /run/secrets/storage_password
+    networks:
+      - authelia-network
+    healthcheck:
+      test: ["CMD", "pg_isready", "-q", "-d", "${AUTHELIA_DB_NAME}", "-U", "${AUTHELIA_DB_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+
+  redis:
+    image: ${AUTHELIA_REDIS_IMAGE_TAG}
+    volumes:
+      - redis-data:/bitnami/redis/data
+      - ./config/secrets/REDIS_PASSWORD:/run/secrets/redis_password
+    environment:
+      REDIS_PASSWORD_FILE: /run/secrets/redis_password
+    networks:
+      - authelia-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+
+  authelia:
+    image: ${AUTHELIA_IMAGE_TAG}
+    volumes:
+      - ./config:/config
+    environment:
+      AUTHELIA_IDENTITY_VALIDATION_RESET_PASSWORD_JWT_SECRET_FILE: /config/secrets/JWT_SECRET
+      AUTHELIA_SESSION_SECRET_FILE: /config/secrets/SESSION_SECRET
+      AUTHELIA_NOTIFIER_SMTP_PASSWORD_FILE: /config/secrets/SMTP_PASSWORD
+      AUTHELIA_STORAGE_ENCRYPTION_KEY_FILE: /config/secrets/STORAGE_ENCRYPTION_KEY
+      AUTHELIA_STORAGE_POSTGRES_PASSWORD_FILE: /config/secrets/STORAGE_PASSWORD
+      AUTHELIA_SESSION_REDIS_PASSWORD_FILE: /config/secrets/REDIS_PASSWORD
+      TZ: ${AUTHELIA_TIMEZONE}
+    networks:
+      - authelia-network
+      - traefik-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.authelia.rule=Host(`${AUTHELIA_HOSTNAME}`)"
+      - "traefik.http.routers.authelia.service=authelia"
+      - "traefik.http.routers.authelia.entrypoints=websecure"
+      - "traefik.http.services.authelia.loadbalancer.server.port=9091"
+      - "traefik.http.routers.authelia.tls=true"
+      - "traefik.http.routers.authelia.tls.certresolver=letsencrypt"
+      - "traefik.http.services.authelia.loadbalancer.passhostheader=true"
+      - "traefik.http.middlewares.authelia.forwardauth.address=http://authelia:9091/api/verify?rd=https://${AUTHELIA_HOSTNAME}"
+      - "traefik.http.middlewares.authelia.forwardauth.trustForwardHeader=true"
+      - "traefik.http.middlewares.authelia.forwardauth.authResponseHeaders=Remote-User,Remote-Groups,Remote-Name,Remote-Email"
+      - "traefik.docker.network=traefik-network"
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      traefik:
+        condition: service_healthy
+
+  traefik:
+    image: ${TRAEFIK_IMAGE_TAG}
+    command:
+      - "--log.level=${TRAEFIK_LOG_LEVEL}"
+      - "--accesslog=true"
+      - "--api.dashboard=true"
+      - "--api.insecure=true"
+      - "--ping=true"
+      - "--ping.entrypoint=ping"
+      - "--entryPoints.ping.address=:8082"
+      - "--entryPoints.web.address=:80"
+      - "--entryPoints.websecure.address=:443"
+      - "--providers.docker=true"
+      - "--providers.docker.endpoint=unix:///var/run/docker.sock"
+      - "--providers.docker.exposedByDefault=false"
+      - "--certificatesresolvers.letsencrypt.acme.tlschallenge=true"
+      - "--certificatesresolvers.letsencrypt.acme.email=${TRAEFIK_ACME_EMAIL}"
+      - "--certificatesresolvers.letsencrypt.acme.storage=/etc/traefik/acme/acme.json"
+      - "--metrics.prometheus=true"
+      - "--metrics.prometheus.buckets=0.1,0.3,1.2,5.0"
+      - "--global.checkNewVersion=true"
+      - "--global.sendAnonymousUsage=false"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - traefik-certificates:/etc/traefik/acme
+    networks:
+      - traefik-network
+    ports:
+      - "80:80"
+      - "443:443"
+    healthcheck:
+      test: ["CMD", "wget", "http://localhost:8082/ping","--spider"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dashboard.rule=Host(`${TRAEFIK_HOSTNAME}`)"
+      - "traefik.http.routers.dashboard.service=api@internal"
+      - "traefik.http.routers.dashboard.entrypoints=websecure"
+      - "traefik.http.services.dashboard.loadbalancer.server.port=8080"
+      - "traefik.http.routers.dashboard.tls=true"
+      - "traefik.http.routers.dashboard.tls.certresolver=letsencrypt"
+      - "traefik.http.services.dashboard.loadbalancer.passhostheader=true"
+      - "traefik.http.routers.dashboard.middlewares=authtraefik"
+      - "traefik.http.middlewares.authtraefik.basicauth.users=${TRAEFIK_BASIC_AUTH}"
+      - "traefik.http.routers.http-catchall.rule=HostRegexp(`{host:.+}`)"
+      - "traefik.http.routers.http-catchall.entrypoints=web"
+      - "traefik.http.routers.http-catchall.middlewares=redirect-to-https"
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+    restart: unless-stopped

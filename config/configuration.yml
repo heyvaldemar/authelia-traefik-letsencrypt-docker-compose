@@ -1,0 +1,53 @@
+---
+###############################################################
+#                   Authelia configuration                    #
+###############################################################
+
+# Miscellaneous https://www.authelia.com/configuration/miscellaneous/introduction/
+theme: auto
+
+# Logs https://www.authelia.com/configuration/miscellaneous/logging/
+log:
+  level: 'debug'
+
+# First Factor https://www.authelia.com/configuration/first-factor/file/
+authentication_backend:
+  file:
+    path: '/config/users_database.yml'
+
+# Second Factor https://www.authelia.com/configuration/second-factor/introduction/
+totp:
+  issuer: 'authelia.com'
+
+# Security https://www.authelia.com/configuration/security/access-control/
+access_control:
+  default_policy: 'deny'
+  rules:
+    - domain: '*.heyvaldemar.net'
+      policy: 'two_factor'
+
+# Session https://www.authelia.com/configuration/session/introduction/
+session:
+  cookies:
+  - domain: 'heyvaldemar.net'
+    authelia_url: 'https://authelia.heyvaldemar.net'
+
+  redis:
+    host: 'redis'
+    port: 6379
+
+# Storage https://www.authelia.com/configuration/storage/postgres/
+storage:
+  postgres:
+    address: 'tcp://postgres:5432'
+    database: 'autheliadb'
+    username: 'autheliadbuser'
+
+# SMTP Notifier https://www.authelia.com/configuration/notifications/smtp/
+notifier:
+  disable_startup_check: true
+  smtp:
+    address: 'smtp://smtp-relay.gmail.com:587'
+    username: 'authelia@heyvaldemar.net'
+    sender: "Authelia <authelia@heyvaldemar.net>"
+    subject: "[Authelia] {title}"
