@@ -73,7 +73,7 @@ services:
       # Use the 'websecure' (HTTPS) entry point
       - "traefik.http.routers.authelia.entrypoints=websecure"
       # Define the internal container port for routing
-      - "traefik.http.services.authelia.loadbalancer.server.port=8080"
+      - "traefik.http.services.authelia.loadbalancer.server.port=9091"
       # Enable TLS on this router
       - "traefik.http.routers.authelia.tls=true"
       # Use Let's Encrypt for certificate management

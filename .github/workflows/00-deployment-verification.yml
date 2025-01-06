@@ -43,7 +43,7 @@ jobs:
       - name: Wait for the application to be ready via Traefik
         run: |
           echo "Checking the routing and availability of the application via Traefik..."
-          timeout 5m bash -c 'while ! curl -fsSLk --write-out "%{http_code}" --output /dev/null "https://$APP_HOSTNAME" | grep -E "200|401"; do \
+          timeout 5m bash -c 'while ! curl -fsSLk "https://$APP_HOSTNAME"; do \
             echo "Waiting for the application to be ready..."; \
             sleep 10; \
           done'
