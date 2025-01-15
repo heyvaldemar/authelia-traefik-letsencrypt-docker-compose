@@ -36,19 +36,19 @@ To integrate Authelia for authentication in your container services managed by T
 
 Add the following label to your container configuration to enable Authelia. Replace `your-router-name` with the name of your specific router:
 
-`- "traefik.http.routers.your-router-name.middlewares=authelia@docker"`
+`- "traefik.http.routers.your-router-name.middlewares=authelia"`
 
 #### Example
 
 If you are enabling Authelia on a service called "whoami", the label would look like this:
 
-`- "traefik.http.routers.whoami.middlewares=authelia@docker"`
+`- "traefik.http.routers.whoami.middlewares=authelia"`
 
 ### Step 2: Adjust for Existing Middlewares
 
-If your service already uses other middlewares, append `authelia@docker` to the existing list, separated by a comma:
+If your service already uses other middlewares, append `authelia` to the existing list, separated by a comma:
 
-`- "traefik.http.routers.your-router-name.middlewares=existing-middleware,authelia@docker"`
+`- "traefik.http.routers.your-router-name.middlewares=existing-middleware,authelia"`
 
 ## Author
 
