@@ -8,7 +8,7 @@ theme: auto
 
 # Logs https://www.authelia.com/configuration/miscellaneous/logging/
 log:
-  level: 'debug'
+  level: 'info'
 
 # First Factor https://www.authelia.com/configuration/first-factor/file/
 authentication_backend:
@@ -17,20 +17,20 @@ authentication_backend:
 
 # Second Factor https://www.authelia.com/configuration/second-factor/introduction/
 totp:
-  issuer: 'authelia.com'
+  issuer: 'example.com'
 
 # Security https://www.authelia.com/configuration/security/access-control/
 access_control:
   default_policy: 'deny'
   rules:
-    - domain: '*.heyvaldemar.net'
+    - domain: '*.example.com'
       policy: 'two_factor'
 
 # Session https://www.authelia.com/configuration/session/introduction/
 session:
   cookies:
-  - domain: 'heyvaldemar.net'
-    authelia_url: 'https://authelia.heyvaldemar.net'
+  - domain: 'example.com'
+    authelia_url: 'https://authelia.example.com'
 
   redis:
     host: 'redis'
@@ -43,11 +43,17 @@ storage:
     database: 'autheliadb'
     username: 'autheliadbuser'
 
-# SMTP Notifier https://www.authelia.com/configuration/notifications/smtp/
+# Notifier https://www.authelia.com/configuration/notifications/introduction/
+# The filesystem notifier works out of the box: password-reset and identity
+# verification links land in /config/notification.txt instead of email.
+# For production mail delivery, remove the filesystem block, enable the
+# SMTP notifier below, and re-add AUTHELIA_NOTIFIER_SMTP_PASSWORD_FILE to
+# the authelia service environment in the compose file.
 notifier:
-  disable_startup_check: true
-  smtp:
-    address: 'smtp://smtp-relay.gmail.com:587'
-    username: 'authelia@heyvaldemar.net'
-    sender: "Authelia <authelia@heyvaldemar.net>"
-    subject: "[Authelia] {title}"
+  filesystem:
+    filename: '/config/notification.txt'
+#  smtp:
+#    address: 'smtp://smtp.example.com:587'
+#    username: 'authelia@example.com'
+#    sender: "Authelia <authelia@example.com>"
+#    subject: "[Authelia] {title}"

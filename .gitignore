@@ -275,4 +275,11 @@ xcuserdata/
 /*.gcno
 **/xcshareddata/WorkspaceSettings.xcsettings
 
-# End of https://www.toptal.com/developers/gitignore/api/git,macos,xcode,jekyll,packer,ansible,vagrant,windows,notepadpp,terraform,powershell,terragrunt,sublimetext,ansibletower,visualstudiocode,linux
+# End of https://www.toptal.com/developers/gitignore/api/git,macos,xcode,jekyll,packer,ansible,vagrant,windows,notepadpp,terraform,powershell,terragrunt,sublimetext,ansibletower,visualstudiocode,linux# Local environment - never commit
+.env
+# Generated per-deployment by generate-authelia-secrets.sh - never commit
+config/secrets/*
+!config/secrets/.gitkeep
+# Authelia runtime artifacts
+config/notification.txt
+config/db.sqlite3

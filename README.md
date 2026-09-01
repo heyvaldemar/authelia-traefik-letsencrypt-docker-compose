@@ -1,131 +1,96 @@
-# Authelia with Let's Encrypt Using Docker Compose
+# Authelia + Traefik + Let's Encrypt — Docker Compose
 
-[![Deployment Verification](https://github.com/heyvaldemar/authelia-traefik-letsencrypt-docker-compose/actions/workflows/00-deployment-verification.yml/badge.svg)](https://github.com/heyvaldemar/authelia-traefik-letsencrypt-docker-compose/actions)
+[![Deployment Verification](https://github.com/heyvaldemar/authelia-traefik-letsencrypt-docker-compose/actions/workflows/deployment-verification.yml/badge.svg?branch=main)](https://github.com/heyvaldemar/authelia-traefik-letsencrypt-docker-compose/actions/workflows/deployment-verification.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-The badge displayed on my repository indicates the status of the deployment verification workflow as executed on the latest commit to the main branch.
+This repository deploys **Authelia** — single sign-on and two-factor authentication in front of the apps Traefik routes — with automatic **Let's Encrypt TLS**, backed by **PostgreSQL** and **Redis**. Traefik's `forwardauth` middleware is pre-wired: add one label to any service and it sits behind Authelia.
 
-**Passing**: This means the most recent commit has successfully passed all deployment checks, confirming that the Docker Compose setup functions correctly as designed.
+## Getting started
 
-📙 The complete installation guide is available on my [website](https://www.heyvaldemar.com/install-authelia-using-docker-compose/).
+```bash
+# 1. Clone
+git clone https://github.com/heyvaldemar/authelia-traefik-letsencrypt-docker-compose
+cd authelia-traefik-letsencrypt-docker-compose
 
-❗ Create secret for storing Authelia using the command:
+# 2. Create the two Docker networks the stack expects
+docker network create traefik-network
+docker network create authelia-network
 
-`chmod +x generate-authelia-secrets.sh && ./generate-authelia-secrets.sh`
+# 3. Generate the six secret files (gitignored, one set per deployment)
+chmod +x generate-authelia-secrets.sh && ./generate-authelia-secrets.sh
 
-❗ Change variables in the `.env`, `config/configuration.yml`, and `config/users_database.yml` files to meet your requirements.
+# 4. Point the config at your domain
+#    Replace example.com with your domain in config/configuration.yml
+#    (access-control rule, session cookie domain, authelia_url).
+$EDITOR config/configuration.yml
 
-❗ Update the SMTP settings in `config/configuration.yml` to ensure Authelia functions properly. Authelia relies on these settings for sending email notifications for password resets, two-factor authentication setups, and more.
+# 5. Copy the environment template and fill in required values
+cp .env.example .env
+$EDITOR .env
 
-💡 Note that the `.env` file should be in the same directory as `authelia-traefik-letsencrypt-docker-compose.yml`.
+# 6. Set your own user in config/users_database.yml
+#    Generate a password hash:
+#    docker run authelia/authelia:latest authelia crypto hash generate argon2 --password 'YOUR_PASSWORD'
 
-Create networks for your services before deploying the configuration using the commands:
+# 7. Deploy
+docker compose -f authelia-traefik-letsencrypt-docker-compose.yml -p authelia up -d
+```
 
-`docker network create traefik-network`
+### Protecting an app
 
-`docker network create authelia-network`
+Add these labels to any Traefik-routed service on the same `traefik-network`:
 
-Deploy Authelia using Docker Compose:
+```yaml
+- "traefik.http.routers.myapp.middlewares=authelia"
+```
 
-`docker compose -f authelia-traefik-letsencrypt-docker-compose.yml -p authelia up -d`
+The `authelia` forwardauth middleware is defined by this stack; unauthenticated requests are redirected to the portal, and authenticated ones carry `Remote-User`/`Remote-Groups` headers.
 
-## Enabling Authelia with Traefik
+### What success looks like
 
-To integrate Authelia for authentication in your container services managed by Traefik, follow the steps below. This will ensure secure access by requiring authentication through Authelia.
+```bash
+docker compose -f authelia-traefik-letsencrypt-docker-compose.yml -p authelia ps
+curl -fsk "https://${AUTHELIA_HOSTNAME}/api/health"   # {"status":"OK"}
+```
 
-### Step 1: Add Authelia Middleware
+### Common first-deploy issues
 
-Add the following label to your container configuration to enable Authelia. Replace `your-router-name` with the name of your specific router:
+- **Authelia restarts in a loop.** Almost always configuration: `docker logs authelia-authelia-1` names the exact key. Missing secret files (step 3 skipped) and a cookie domain that doesn't match `authelia_url` are the usual suspects.
+- **Password-reset links don't arrive.** By default they land in `/config/notification.txt` (filesystem notifier) — enable the SMTP block in `config/configuration.yml` for real mail, and re-add `AUTHELIA_NOTIFIER_SMTP_PASSWORD_FILE` to the compose environment.
+- **Cert issuance fails.** DNS hasn't propagated or port 80 isn't reachable.
 
-`- "traefik.http.routers.your-router-name.middlewares=authelia"`
+## Supply chain trust
 
-#### Example
+Four images — [`traefik`](https://hub.docker.com/_/traefik), [`authelia/authelia`](https://hub.docker.com/r/authelia/authelia), [`postgres`](https://hub.docker.com/_/postgres), [`redis`](https://hub.docker.com/_/redis) — pinned to `tag@sha256:<digest>` as interpolation defaults in the compose `x-images` block. Redis is the official image (the previously used Bitnami image has been frozen since Broadcom's 2025 catalog change). `git pull` alone delivers the tested combination.
 
-If you are enabling Authelia on a service called "whoami", the label would look like this:
+The weekly `check-pin-freshness` CI job re-resolves each pin against its registry and compares the pinned Authelia and Traefik versions against the latest upstream releases. GitHub Actions are pinned by commit SHA; Dependabot keeps those fresh.
 
-`- "traefik.http.routers.whoami.middlewares=authelia"`
+## Production checklist
 
-### Step 2: Adjust for Existing Middlewares
+- [ ] **Generate fresh secrets** — never deploy with someone else's `config/secrets/`.
+- [ ] **Replace the sample user** in `config/users_database.yml` — its password is the documented word `authelia`.
+- [ ] **Enable SMTP** for real password-reset mail.
+- [ ] **Back up `config/secrets/` and the database volume together** — the storage encryption key and the database are only useful as a pair.
+- [ ] **Regenerate the Traefik dashboard hash** — never ship the placeholder.
 
-If your service already uses other middlewares, append `authelia` to the existing list, separated by a comma:
+## Testing
 
-`- "traefik.http.routers.your-router-name.middlewares=existing-middleware,authelia"`
+The [Deployment Verification](https://github.com/heyvaldemar/authelia-traefik-letsencrypt-docker-compose/actions/workflows/deployment-verification.yml?query=branch%3Amain) workflow runs on every push, pull request, and every Monday at 06:00 UTC: shellcheck + actionlint, Trivy scans of all four pinned images, the weekly freshness check, and a deploy-and-test job that generates fresh secrets, boots the stack, and requires `/api/health` to answer `OK` through Traefik.
 
-## Author
+## Security Notes
 
-hey everyone,
+- **Pre-rotation advisory.** Releases before v1.0.0 (2026-09-01) tracked the six secret files in git — session secret, storage encryption key, database and Redis passwords, JWT secret. If your deployment reused them, regenerate all six (`./generate-authelia-secrets.sh`) and restart. Changing the storage encryption key invalidates encrypted storage data (TOTP secrets, webauthn devices): run `authelia storage encryption change-key` to migrate, or reset the storage and re-enroll second factors.
+- The default access-control policy is `deny` — only rules you add grant access.
+- PostgreSQL and Redis listen only on the internal network.
 
-💾 I’ve been in the IT game for over 20 years, cutting my teeth with some big names like [IBM](https://www.linkedin.com/in/heyvaldemar/), [Thales](https://www.linkedin.com/in/heyvaldemar/), and [Amazon](https://www.linkedin.com/in/heyvaldemar/). These days, I wear the hat of a DevOps Consultant and Team Lead, but what really gets me going is Docker and container technology - I’m kind of obsessed!
+---
 
-💛 I have my own IT [blog](https://www.heyvaldemar.com/), where I’ve built a [community](https://discord.gg/AJQGCCBcqf) of DevOps enthusiasts who share my love for all things Docker, containers, and IT technologies in general. And to make sure everyone can jump on this awesome DevOps train, I write super detailed guides (seriously, they’re foolproof!) that help even newbies deploy and manage complex IT solutions.
-
-🚀 My dream is to empower every single person in the DevOps community to squeeze every last drop of potential out of Docker and container tech.
-
-🐳 As a [Docker Captain](https://www.docker.com/captains/vladimir-mikhalev/), I’m stoked to share my knowledge, experiences, and a good dose of passion for the tech. My aim is to encourage learning, innovation, and growth, and to inspire the next generation of IT whizz-kids to push Docker and container tech to its limits.
-
-Let’s do this together!
-
-## My 2D Portfolio
-
-🕹️ Click into [sre.gg](https://www.sre.gg/) — my virtual space is a 2D pixel-art portfolio inviting you to interact with elements that encapsulate the milestones of my DevOps career.
-
-## My Courses
-
-🎓 Dive into my [comprehensive IT courses](https://www.heyvaldemar.com/courses/) designed for enthusiasts and professionals alike. Whether you're looking to master Docker, conquer Kubernetes, or advance your DevOps skills, my courses provide a structured pathway to enhancing your technical prowess.
-
-🔑 [Each course](https://www.udemy.com/user/heyvaldemar/) is built from the ground up with real-world scenarios in mind, ensuring that you gain practical knowledge and hands-on experience. From beginners to seasoned professionals, there's something here for everyone to elevate their IT skills.
-
-## My Services
-
-💼 Take a look at my [service catalog](https://www.heyvaldemar.com/services/) and find out how we can make your technological life better. Whether it's increasing the efficiency of your IT infrastructure, advancing your career, or expanding your technological horizons — I'm here to help you achieve your goals. From DevOps transformations to building gaming computers — let's make your technology unparalleled!
-
-## Patreon Exclusives
-
-🏆 Join my [Patreon](https://www.patreon.com/heyvaldemar) and dive deep into the world of Docker and DevOps with exclusive content tailored for IT enthusiasts and professionals. As your experienced guide, I offer a range of membership tiers designed to suit everyone from newbies to IT experts.
-
-## My Recommendations
-
-📕 Check out my collection of [essential DevOps books](https://kit.co/heyvaldemar/essential-devops-books)\
-🖥️ Check out my [studio streaming and recording kit](https://kit.co/heyvaldemar/my-studio-streaming-and-recording-kit)\
-📡 Check out my [streaming starter kit](https://kit.co/heyvaldemar/streaming-starter-kit)
-
-## Follow Me
-
-🎬 [YouTube](https://www.youtube.com/channel/UCf85kQ0u1sYTTTyKVpxrlyQ?sub_confirmation=1)\
-🐦 [X / Twitter](https://twitter.com/heyvaldemar)\
-🎨 [Instagram](https://www.instagram.com/heyvaldemar/)\
-🐘 [Mastodon](https://mastodon.social/@heyvaldemar)\
-🧵 [Threads](https://www.threads.net/@heyvaldemar)\
-🎸 [Facebook](https://www.facebook.com/heyvaldemarFB/)\
-🧊 [Bluesky](https://bsky.app/profile/heyvaldemar.bsky.social)\
-🎥 [TikTok](https://www.tiktok.com/@heyvaldemar)\
-💻 [LinkedIn](https://www.linkedin.com/in/heyvaldemar/)\
-📣 [daily.dev Squad](https://app.daily.dev/squads/devopscompass)\
-🧩 [LeetCode](https://leetcode.com/u/heyvaldemar/)\
-🐈 [GitHub](https://github.com/heyvaldemar)
-
-## Community of IT Experts
-
-👾 [Discord](https://discord.gg/AJQGCCBcqf)
-
-## Refill My Coffee Supplies
-
-💖 [PayPal](https://www.paypal.com/paypalme/heyvaldemarCOM)\
-🏆 [Patreon](https://www.patreon.com/heyvaldemar)\
-💎 [GitHub](https://github.com/sponsors/heyvaldemar)\
-🥤 [BuyMeaCoffee](https://www.buymeacoffee.com/heyvaldemar)\
-🍪 [Ko-fi](https://ko-fi.com/heyvaldemar)
-
-🌟 **Bitcoin (BTC):** bc1q2fq0k2lvdythdrj4ep20metjwnjuf7wccpckxc\
-🔹 **Ethereum (ETH):** 0x76C936F9366Fad39769CA5285b0Af1d975adacB8\
-🪙 **Binance Coin (BNB):** bnb1xnn6gg63lr2dgufngfr0lkq39kz8qltjt2v2g6\
-💠 **Litecoin (LTC):** LMGrhx8Jsx73h1pWY9FE8GB46nBytjvz8g
+## About the maintainer
 
 <div align="center">
 
-### Show some 💜 by starring some of the [repositories](https://github.com/heyValdemar?tab=repositories)!
+**Maintained by [Vladimir Mikhalev](https://github.com/heyvaldemar)** — Docker Captain · IBM Champion · AWS Community Builder
 
-![octocat](https://user-images.githubusercontent.com/10498744/210113490-e2fad07f-4488-4da8-a656-b9abbdd8cb26.gif)
+[YouTube](https://www.youtube.com/channel/UCf85kQ0u1sYTTTyKVpxrlyQ?sub_confirmation=1) · [Blog](https://heyvaldemar.com) · [LinkedIn](https://www.linkedin.com/in/heyvaldemar/)
 
 </div>
-
-![footer](https://user-images.githubusercontent.com/10498744/210157572-1fca0242-8af2-46a6-bfa3-666ffd40ebde.svg)

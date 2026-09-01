@@ -1,3 +1,16 @@
+# Image pins live HERE, as interpolation defaults, so `git pull` (or
+# re-downloading this file) delivers the exact version combination this
+# repository has tested — no .env editing required. Setting the matching
+# variable in .env overrides the default for anyone who wants to pin
+# differently; .env itself carries only secrets and deliberate overrides.
+# CI (Trivy scans, check-pin-freshness, the ephemeral test .env) reads
+# the pins from these lines — this block is the single source of truth.
+x-images:
+  traefik: &traefik-image ${TRAEFIK_IMAGE_TAG:-traefik:3.7@sha256:9c2a54d87f76f5c2f5f2682c68394af92fb12c0a2686798d6462a3f84bd78eaf}
+  postgres: &postgres-image ${AUTHELIA_POSTGRES_IMAGE_TAG:-postgres:16@sha256:f1c3376c26f2609ab9f29f71f824103fe2fcd8ee0346485cb6122a4f93df6f94}
+  redis: &redis-image ${AUTHELIA_REDIS_IMAGE_TAG:-redis:7.4@sha256:71da9275c5f3fcb97d0fa0c8c5b36cc995327265420f17a04bfd544f458059f7}
+  authelia: &authelia-image ${AUTHELIA_IMAGE_TAG:-authelia/authelia:4.39.20@sha256:1b363e9279e742397966333f364e0876ae02bf5c876de73e83af6d48c57ff51b}
+
 networks:
   authelia-network:
     external: true
@@ -13,18 +26,18 @@ volumes:
 
 services:
   postgres:
-    image: ${AUTHELIA_POSTGRES_IMAGE_TAG}
+    image: *postgres-image
     volumes:
       - authelia-postgres:/var/lib/postgresql/data
       - ./config/secrets/STORAGE_PASSWORD:/run/secrets/storage_password
     environment:
-      POSTGRES_DB: ${AUTHELIA_DB_NAME}
-      POSTGRES_USER: ${AUTHELIA_DB_USER}
+      POSTGRES_DB: ${AUTHELIA_DB_NAME:-autheliadb}
+      POSTGRES_USER: ${AUTHELIA_DB_USER:-autheliadbuser}
       POSTGRES_PASSWORD_FILE: /run/secrets/storage_password
     networks:
       - authelia-network
     healthcheck:
-      test: ["CMD", "pg_isready", "-q", "-d", "${AUTHELIA_DB_NAME}", "-U", "${AUTHELIA_DB_USER}"]
+      test: ["CMD", "pg_isready", "-q", "-d", "${AUTHELIA_DB_NAME:-autheliadb}", "-U", "${AUTHELIA_DB_USER:-autheliadbuser}"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -32,12 +45,14 @@ services:
     restart: unless-stopped
 
   redis:
-    image: ${AUTHELIA_REDIS_IMAGE_TAG}
+    image: *redis-image
+    # Official redis image (the bitnami one is frozen since Broadcom's 2025
+    # catalog change). No *_FILE env support here, so the entrypoint shell
+    # reads the mounted secret itself.
+    command: ["sh", "-c", "exec redis-server --requirepass \"$$(cat /run/secrets/redis_password)\""]
     volumes:
-      - redis-data:/bitnami/redis/data
-      - ./config/secrets/REDIS_PASSWORD:/run/secrets/redis_password
-    environment:
-      REDIS_PASSWORD_FILE: /run/secrets/redis_password
+      - redis-data:/data
+      - ./config/secrets/REDIS_PASSWORD:/run/secrets/redis_password:ro
     networks:
       - authelia-network
     healthcheck:
@@ -49,17 +64,16 @@ services:
     restart: unless-stopped
 
   authelia:
-    image: ${AUTHELIA_IMAGE_TAG}
+    image: *authelia-image
     volumes:
       - ./config:/config
     environment:
       AUTHELIA_IDENTITY_VALIDATION_RESET_PASSWORD_JWT_SECRET_FILE: /config/secrets/JWT_SECRET
       AUTHELIA_SESSION_SECRET_FILE: /config/secrets/SESSION_SECRET
-      AUTHELIA_NOTIFIER_SMTP_PASSWORD_FILE: /config/secrets/SMTP_PASSWORD
       AUTHELIA_STORAGE_ENCRYPTION_KEY_FILE: /config/secrets/STORAGE_ENCRYPTION_KEY
       AUTHELIA_STORAGE_POSTGRES_PASSWORD_FILE: /config/secrets/STORAGE_PASSWORD
       AUTHELIA_SESSION_REDIS_PASSWORD_FILE: /config/secrets/REDIS_PASSWORD
-      TZ: ${AUTHELIA_TIMEZONE}
+      TZ: ${AUTHELIA_TIMEZONE:-America/New_York}
     networks:
       - authelia-network
       - traefik-network
@@ -67,7 +81,7 @@ services:
       # Enable Traefik for this container
       - "traefik.enable=true"
       # Match incoming requests on a specific hostname
-      - "traefik.http.routers.authelia.rule=Host(`${AUTHELIA_HOSTNAME}`)"
+      - "traefik.http.routers.authelia.rule=Host(`${AUTHELIA_HOSTNAME:?set in .env - see .env.example}`)"
       # Assign the router to a named Traefik service
       - "traefik.http.routers.authelia.service=authelia"
       # Use the 'websecure' (HTTPS) entry point
@@ -102,10 +116,10 @@ services:
         condition: service_healthy
 
   traefik:
-    image: ${TRAEFIK_IMAGE_TAG}
+    image: *traefik-image
     command:
       # Set the log level (DEBUG, INFO, WARN, ERROR)
-      - "--log.level=${TRAEFIK_LOG_LEVEL}"
+      - "--log.level=${TRAEFIK_LOG_LEVEL:-WARN}"
       # Enable the built-in API and web-based dashboard
       - "--api.dashboard=true"
       # Enable the /ping endpoint so we can health-check Traefik
@@ -130,7 +144,7 @@ services:
       # Use ACME (Let's Encrypt) to generate/renew certificates via TLS challenge
       - "--certificatesresolvers.letsencrypt.acme.tlschallenge=true"
       # The email address used by Let's Encrypt for renewal notices
-      - "--certificatesresolvers.letsencrypt.acme.email=${TRAEFIK_ACME_EMAIL}"
+      - "--certificatesresolvers.letsencrypt.acme.email=${TRAEFIK_ACME_EMAIL:?set in .env - see .env.example}"
       # The file where ACME certificates are stored inside the container
       - "--certificatesresolvers.letsencrypt.acme.storage=/etc/traefik/acme/acme.json"
       # Enable Prometheus metrics
@@ -159,14 +173,14 @@ services:
       # Enable Traefik for this container
       - "traefik.enable=true"
       # A router to expose the Traefik dashboard
-      - "traefik.http.routers.dashboard.rule=Host(`${TRAEFIK_HOSTNAME}`)"
+      - "traefik.http.routers.dashboard.rule=Host(`${TRAEFIK_HOSTNAME:?set in .env - see .env.example}`)"
       - "traefik.http.routers.dashboard.entrypoints=websecure"
       - "traefik.http.routers.dashboard.tls=true"
       - "traefik.http.routers.dashboard.tls.certresolver=letsencrypt"
       - "traefik.http.routers.dashboard.service=api@internal"
       # Basic Authentication for the Traefik dashboard
       - "traefik.http.routers.dashboard.middlewares=authtraefik"
-      - "traefik.http.middlewares.authtraefik.basicauth.users=${TRAEFIK_BASIC_AUTH}"
+      - "traefik.http.middlewares.authtraefik.basicauth.users=${TRAEFIK_BASIC_AUTH:?set in .env - see .env.example for htpasswd generation}"
       # Specify the internal server port to the dashboard service
       - "traefik.http.services.dashboard.loadbalancer.server.port=8080"
       # Pass the original Host header to the backend
