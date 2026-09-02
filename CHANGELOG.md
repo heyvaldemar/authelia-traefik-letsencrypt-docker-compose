@@ -9,6 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _(no unreleased changes yet)_
 
+## [1.3.0] - 2026-09-02
+
+### Added
+
+- **A `backups` service** — the compose file had declared the backup
+  volumes since day one but never ran anything against them. The new
+  service dumps PostgreSQL on a loop (`pg_dump | gzip` under `pipefail`,
+  logging `Database backup OK: <file> (<bytes> bytes)` or `FAILED` per
+  cycle, keeping a failed dump as `<file>.failed`, pruning only its own
+  files). It reads the database password from the same secret file
+  PostgreSQL uses, so nothing about backups lives in `.env`; the
+  schedule knobs (`AUTHELIA_BACKUP_INIT_SLEEP`, `AUTHELIA_BACKUP_INTERVAL`,
+  `AUTHELIA_POSTGRES_BACKUP_PRUNE_DAYS`, path and name) have defaults
+  listed in `.env.example`.
+- **`authelia-restore-database.sh`** — interactive restore: lists dumps,
+  stops Authelia, drops and recreates the database from the selected
+  dump, starts Authelia again.
+- **`tests/e2e-backup-restore.sh`** — seven scenarios against the live
+  stack, run by CI on every push: backup produced, readable, valid
+  content, failure detected when the database is down, **restore
+  genuinely replaces database state**, prune keeps recent files.
+
 ## [1.2.0] - 2026-09-02
 
 ### Added
@@ -72,7 +94,8 @@ v1.2.0.
   deploy-and-test job that generates fresh secrets, boots the stack, and
   requires `/api/health` to answer `OK` through Traefik.
 
-[Unreleased]: https://github.com/heyvaldemar/authelia-traefik-letsencrypt-docker-compose/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/heyvaldemar/authelia-traefik-letsencrypt-docker-compose/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/heyvaldemar/authelia-traefik-letsencrypt-docker-compose/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/heyvaldemar/authelia-traefik-letsencrypt-docker-compose/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/heyvaldemar/authelia-traefik-letsencrypt-docker-compose/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/heyvaldemar/authelia-traefik-letsencrypt-docker-compose/releases/tag/v1.0.0

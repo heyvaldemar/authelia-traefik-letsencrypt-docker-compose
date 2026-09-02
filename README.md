@@ -97,6 +97,28 @@ This is deliberately a host-side script and not a container in the stack: an in-
 
 Every service carries memory and CPU limits plus reservations as compose-level defaults — the same values CI boots the stack under. Override any of them in `.env` (the knobs and their defaults are listed in `.env.example`, e.g. `TRAEFIK_MEMORY_LIMIT=512m`) and the override survives every `git pull`. If a service is OOM-killed under real load, `docker inspect <container> --format '{{.State.OOMKilled}}'` says so; raise its `_MEMORY_LIMIT` and recreate.
 
+## Backups
+
+The `backups` container runs `pg_dump | gzip` of the Authelia database on a loop: an initial delay (`AUTHELIA_BACKUP_INIT_SLEEP`, default 30m), then one timestamped dump every `AUTHELIA_BACKUP_INTERVAL` (default 24h), pruning files older than `AUTHELIA_POSTGRES_BACKUP_PRUNE_DAYS` (default 7). The database password is read from `config/secrets/STORAGE_PASSWORD`, the same file PostgreSQL uses. Each cycle logs `Database backup OK: <file> (<bytes> bytes)` or `Database backup FAILED`; a failed dump is kept as `<file>.failed` for diagnosis — grep the log for `FAILED` from your monitoring.
+
+**Verify backups are running:**
+
+```bash
+docker compose -p authelia logs backups | tail -5
+```
+
+**Restore** with the interactive script (`chmod +x authelia-restore-database.sh` once): it lists dumps, stops Authelia, recreates the database from the selected dump, and starts Authelia again.
+
+```bash
+./authelia-restore-database.sh
+```
+
+**Off-host replication.** Dumps land in the `authelia-database-backups` named volume — if the host dies, backups die with it. Bind-mount the path to a host directory covered by your off-host backup solution (restic, rclone, Borg, S3 sync).
+
+### Backup and restore, proven
+
+`tests/e2e-backup-restore.sh` runs against the live stack and is what CI executes after the HTTPS smoke. The scenario that matters most is the restore roundtrip: insert a marker row, restore the earliest post-marker backup, assert the marker is gone — a backup that cannot be restored fails the build. Run it yourself on a staging copy with short intervals in `.env` (`AUTHELIA_BACKUP_INIT_SLEEP=15s`, `AUTHELIA_BACKUP_INTERVAL=60s`); it stops the database container briefly to prove failure detection.
+
 ## Testing
 
 The [Deployment Verification](https://github.com/heyvaldemar/authelia-traefik-letsencrypt-docker-compose/actions/workflows/deployment-verification.yml?query=branch%3Amain) workflow runs on every push, pull request, and every Monday at 06:00 UTC: shellcheck + actionlint, Trivy scans of all four pinned images, the weekly freshness check, and a deploy-and-test job that generates fresh secrets, boots the stack, and requires `/api/health` to answer `OK` through Traefik.

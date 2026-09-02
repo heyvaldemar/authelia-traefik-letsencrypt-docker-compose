@@ -208,6 +208,8 @@ jobs:
           TRAEFIK_HOSTNAME=${APP_TRAEFIK_HOSTNAME}
           TRAEFIK_BASIC_AUTH=traefikadmin:\$\$2y\$\$10\$\$sMzJfirKC75x/hVpiINeZOiSm.Jkity9cn4KwNkRvO7hSQVFc5FLO
           AUTHELIA_HOSTNAME=${APP_HOSTNAME}
+          AUTHELIA_BACKUP_INIT_SLEEP=15s
+          AUTHELIA_BACKUP_INTERVAL=60s
           EOF
           echo "Generated ephemeral .env for CI run"
 
@@ -239,6 +241,26 @@ jobs:
             sleep 5
           done'
           curl -fsk "https://$APP_HOSTNAME/api/health"; echo
+
+      - name: Verify a backup is produced and valid
+        # Log-driven: the file named in a 'backup OK' line is complete by
+        # definition, so this never races a dump that is still being written.
+        run: |
+          # shellcheck disable=SC2016
+          timeout 6m bash -c 'until docker compose -f "$DOCKER_COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" logs backups 2>/dev/null | grep -q "Database backup OK"; do echo "Waiting for the first backup cycle..."; sleep 10; done'
+          db=$(docker compose -f "$DOCKER_COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" logs backups 2>/dev/null | grep "Database backup OK" | tail -1 | sed -E 's/.*Database backup OK: ([^ ]+) .*/\1/')
+          echo "Database backup file: $db"
+          docker compose -f "$DOCKER_COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" exec -T backups sh -c "gunzip -t '$db' && gunzip -c '$db' | head -5 | grep -qE 'PostgreSQL database dump'" && echo "Database backup valid: $db"
+          docker compose -f "$DOCKER_COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" logs backups 2>/dev/null | grep -i "backup FAILED" && { echo "::error::the backups log reports a failure"; exit 1; } || true
+
+      - name: Run the backup/restore end-to-end tests
+        # Seven scenarios against the live stack: required-env guard, backup
+        # produced, readable, valid content, failure detected when the
+        # database is down, restore genuinely replaces state, prune keeps
+        # recent files. Same script a maintainer runs locally.
+        run: |
+          chmod +x tests/e2e-backup-restore.sh
+          ./tests/e2e-backup-restore.sh
 
       - name: Wait for the Traefik dashboard to be ready
         run: |

@@ -226,3 +226,55 @@ services:
       # Pass the original Host header to the backend
       - "traefik.http.services.dashboard.loadbalancer.passhostheader=true"
     restart: unless-stopped
+
+  backups:
+    image: *postgres-image
+    # Resource limits as .env-overridable defaults (e.g. AUTHELIA_BACKUPS_MEMORY_LIMIT=2g);
+    # the override survives every git pull.
+    deploy:
+      resources:
+        limits:
+          memory: ${AUTHELIA_BACKUPS_MEMORY_LIMIT:-256m}
+          cpus: "${AUTHELIA_BACKUPS_CPU_LIMIT:-0.5}"
+        reservations:
+          memory: ${AUTHELIA_BACKUPS_MEMORY_RESERVATION:-32m}
+          cpus: "${AUTHELIA_BACKUPS_CPU_RESERVATION:-0.1}"
+    # The database password is read from the same secret file PostgreSQL
+    # uses, so nothing about the backups lives in .env.
+    command: >-
+      bash -c 'set -o pipefail;
+      export PGPASSWORD="$$(cat /run/secrets/storage_password)";
+      sleep "$$AUTHELIA_BACKUP_INIT_SLEEP";
+      while true; do
+        STAMP="$$(date +%Y-%m-%d_%H-%M)";
+        DB_FILE="$$AUTHELIA_POSTGRES_BACKUPS_PATH/$$AUTHELIA_POSTGRES_BACKUP_NAME-$$STAMP.gz";
+        echo "[$$(date -Iseconds)] Starting database backup to $$DB_FILE";
+        if pg_dump -h postgres -p 5432 -d "$$AUTHELIA_DB_NAME" -U "$$AUTHELIA_DB_USER" | gzip > "$$DB_FILE"; then
+          echo "[$$(date -Iseconds)] Database backup OK: $$DB_FILE ($$(stat -c %s "$$DB_FILE") bytes)";
+        else
+          echo "[$$(date -Iseconds)] Database backup FAILED - partial file kept as $$DB_FILE.failed for diagnosis" >&2;
+          mv "$$DB_FILE" "$$DB_FILE.failed" 2>/dev/null || true;
+        fi;
+        if [ "$${AUTHELIA_POSTGRES_BACKUP_PRUNE_DAYS:-0}" -ge 1 ]; then
+          find "$$AUTHELIA_POSTGRES_BACKUPS_PATH" -type f -name "$$AUTHELIA_POSTGRES_BACKUP_NAME-*" -mtime "+$$AUTHELIA_POSTGRES_BACKUP_PRUNE_DAYS" -delete;
+        fi;
+        sleep "$$AUTHELIA_BACKUP_INTERVAL";
+      done'
+    volumes:
+      - authelia-postgres-backup:/var/lib/postgresql/data
+      - authelia-database-backups:${AUTHELIA_POSTGRES_BACKUPS_PATH:-/srv/authelia-postgres/backups}
+      - ./config/secrets/STORAGE_PASSWORD:/run/secrets/storage_password:ro
+    environment:
+      AUTHELIA_DB_NAME: ${AUTHELIA_DB_NAME:-autheliadb}
+      AUTHELIA_DB_USER: ${AUTHELIA_DB_USER:-autheliadbuser}
+      AUTHELIA_BACKUP_INIT_SLEEP: ${AUTHELIA_BACKUP_INIT_SLEEP:-30m}
+      AUTHELIA_BACKUP_INTERVAL: ${AUTHELIA_BACKUP_INTERVAL:-24h}
+      AUTHELIA_POSTGRES_BACKUP_PRUNE_DAYS: ${AUTHELIA_POSTGRES_BACKUP_PRUNE_DAYS:-7}
+      AUTHELIA_POSTGRES_BACKUPS_PATH: ${AUTHELIA_POSTGRES_BACKUPS_PATH:-/srv/authelia-postgres/backups}
+      AUTHELIA_POSTGRES_BACKUP_NAME: ${AUTHELIA_POSTGRES_BACKUP_NAME:-authelia-postgres-backup}
+    networks:
+      - authelia-network
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
