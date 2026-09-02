@@ -27,6 +27,16 @@ volumes:
 services:
   postgres:
     image: *postgres-image
+    # Resource limits as .env-overridable defaults (e.g. AUTHELIA_POSTGRES_MEMORY_LIMIT=2g);
+    # the override survives every git pull.
+    deploy:
+      resources:
+        limits:
+          memory: ${AUTHELIA_POSTGRES_MEMORY_LIMIT:-1g}
+          cpus: "${AUTHELIA_POSTGRES_CPU_LIMIT:-1.0}"
+        reservations:
+          memory: ${AUTHELIA_POSTGRES_MEMORY_RESERVATION:-128m}
+          cpus: "${AUTHELIA_POSTGRES_CPU_RESERVATION:-0.25}"
     volumes:
       - authelia-postgres:/var/lib/postgresql/data
       - ./config/secrets/STORAGE_PASSWORD:/run/secrets/storage_password
@@ -46,6 +56,16 @@ services:
 
   redis:
     image: *redis-image
+    # Resource limits as .env-overridable defaults (e.g. AUTHELIA_REDIS_MEMORY_LIMIT=2g);
+    # the override survives every git pull.
+    deploy:
+      resources:
+        limits:
+          memory: ${AUTHELIA_REDIS_MEMORY_LIMIT:-256m}
+          cpus: "${AUTHELIA_REDIS_CPU_LIMIT:-0.5}"
+        reservations:
+          memory: ${AUTHELIA_REDIS_MEMORY_RESERVATION:-32m}
+          cpus: "${AUTHELIA_REDIS_CPU_RESERVATION:-0.1}"
     # Official redis image (the bitnami one is frozen since Broadcom's 2025
     # catalog change). No *_FILE env support here, so the entrypoint shell
     # reads the mounted secret itself.
@@ -65,6 +85,16 @@ services:
 
   authelia:
     image: *authelia-image
+    # Resource limits as .env-overridable defaults (e.g. AUTHELIA_MEMORY_LIMIT=2g);
+    # the override survives every git pull.
+    deploy:
+      resources:
+        limits:
+          memory: ${AUTHELIA_MEMORY_LIMIT:-512m}
+          cpus: "${AUTHELIA_CPU_LIMIT:-1.0}"
+        reservations:
+          memory: ${AUTHELIA_MEMORY_RESERVATION:-64m}
+          cpus: "${AUTHELIA_CPU_RESERVATION:-0.25}"
     volumes:
       - ./config:/config
     environment:
@@ -117,6 +147,16 @@ services:
 
   traefik:
     image: *traefik-image
+    # Resource limits as .env-overridable defaults (e.g. TRAEFIK_MEMORY_LIMIT=2g);
+    # the override survives every git pull.
+    deploy:
+      resources:
+        limits:
+          memory: ${TRAEFIK_MEMORY_LIMIT:-256m}
+          cpus: "${TRAEFIK_CPU_LIMIT:-0.5}"
+        reservations:
+          memory: ${TRAEFIK_MEMORY_RESERVATION:-64m}
+          cpus: "${TRAEFIK_CPU_RESERVATION:-0.1}"
     command:
       # Set the log level (DEBUG, INFO, WARN, ERROR)
       - "--log.level=${TRAEFIK_LOG_LEVEL:-WARN}"
