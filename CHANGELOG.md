@@ -25,6 +25,10 @@ _(no unreleased changes yet)_
   `docker compose up` fails with an invalid reference instead of
   deploying something unexpected.
 
+### Changed
+
+- `authelia/authelia` 4.39.20 to 4.39.22.
+
 ## [1.4.0] - 2026-09-02
 
 ### Security
