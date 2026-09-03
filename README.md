@@ -119,6 +119,10 @@ docker compose -p authelia logs backups | tail -5
 
 `tests/e2e-backup-restore.sh` runs against the live stack and is what CI executes after the HTTPS smoke. The scenario that matters most is the restore roundtrip: insert a marker row, restore the earliest post-marker backup, assert the marker is gone — a backup that cannot be restored fails the build. Run it yourself on a staging copy with short intervals in `.env` (`AUTHELIA_BACKUP_INIT_SLEEP=15s`, `AUTHELIA_BACKUP_INTERVAL=60s`); it stops the database container briefly to prove failure detection.
 
+## Container hardening
+
+Every service runs with `security_opt: no-new-privileges:true`, so a process cannot gain privileges through setuid binaries even if it escapes its initial capability set. Infrastructure containers (the reverse proxy, databases, caches, backups) run with `cap_drop: [ALL]` and add back only what their entrypoints need: `NET_BIND_SERVICE` for Traefik to bind :80/:443, `CHOWN`/`SETUID`/`SETGID` (and friends) for database images to own their data directory and drop to their service user. Application containers keep the default capability set on purpose: upstream images assume it, and a wrong guess there is a boot loop in production rather than a hardening win. CI boots the stack under exactly these settings on every push, so what ships is what was tested.
+
 ## Testing
 
 The [Deployment Verification](https://github.com/heyvaldemar/authelia-traefik-letsencrypt-docker-compose/actions/workflows/deployment-verification.yml?query=branch%3Amain) workflow runs on every push, pull request, and every day at 06:00 UTC: shellcheck + actionlint, Trivy scans of all four pinned images, the weekly freshness check, and a deploy-and-test job that generates fresh secrets, boots the stack, and requires `/api/health` to answer `OK` through Traefik.
