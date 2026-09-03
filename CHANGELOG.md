@@ -28,7 +28,7 @@ _(no unreleased changes yet)_
 
 ### Added
 
-- **A `backups` service** — the compose file had declared the backup
+- **A `backups` service**: the compose file had declared the backup
   volumes since day one but never ran anything against them. The new
   service dumps PostgreSQL on a loop (`pg_dump | gzip` under `pipefail`,
   logging `Database backup OK: <file> (<bytes> bytes)` or `FAILED` per
@@ -38,10 +38,10 @@ _(no unreleased changes yet)_
   schedule knobs (`AUTHELIA_BACKUP_INIT_SLEEP`, `AUTHELIA_BACKUP_INTERVAL`,
   `AUTHELIA_POSTGRES_BACKUP_PRUNE_DAYS`, path and name) have defaults
   listed in `.env.example`.
-- **`authelia-restore-database.sh`** — interactive restore: lists dumps,
+- **`authelia-restore-database.sh`**: interactive restore: lists dumps,
   stops Authelia, drops and recreates the database from the selected
   dump, starts Authelia again.
-- **`tests/e2e-backup-restore.sh`** — seven scenarios against the live
+- **`tests/e2e-backup-restore.sh`**: seven scenarios against the live
   stack, run by CI on every push: backup produced, readable, valid
   content, failure detected when the database is down, **restore
   genuinely replaces database state**, prune keeps recent files.
@@ -63,7 +63,7 @@ _(no unreleased changes yet)_
 
 ### Added
 
-- **`update.sh`** — unattended updates to the newest tagged release,
+- **`update.sh`**: unattended updates to the newest tagged release,
   and nothing else: a tag is cut only after CI has booted the pinned
   images and passed the smoke tests, so "update to the latest tag" means
   "update to a combination a machine has already run". It refuses to
@@ -79,13 +79,13 @@ v1.2.0.
 
 ### Security (act on this)
 
-- **The six secret files under `config/secrets/` were tracked in git** —
+- **The six secret files under `config/secrets/` were tracked in git**:
   session secret, storage encryption key, database and Redis passwords,
   JWT secret. Any deployment that used them as shipped was running on
   publicly known secrets. They are now gitignored;
   `./generate-authelia-secrets.sh` creates a fresh set per deployment.
   ❗ If your deployment reused the tracked values, regenerate all six and
-  restart — note that changing the storage encryption key requires
+  restart: note that changing the storage encryption key requires
   resetting the storage (see the release notes).
 
 ### Changed
