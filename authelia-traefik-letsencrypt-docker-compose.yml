@@ -6,10 +6,10 @@
 # CI (Trivy scans, check-pin-freshness, the ephemeral test .env) reads
 # the pins from these lines — this block is the single source of truth.
 x-images:
-  traefik: &traefik-image ${TRAEFIK_IMAGE_TAG:-traefik:3.7@sha256:9c2a54d87f76f5c2f5f2682c68394af92fb12c0a2686798d6462a3f84bd78eaf}
-  postgres: &postgres-image ${AUTHELIA_POSTGRES_IMAGE_TAG:-postgres:16@sha256:f1c3376c26f2609ab9f29f71f824103fe2fcd8ee0346485cb6122a4f93df6f94}
-  redis: &redis-image ${AUTHELIA_REDIS_IMAGE_TAG:-redis:7.4@sha256:71da9275c5f3fcb97d0fa0c8c5b36cc995327265420f17a04bfd544f458059f7}
-  authelia: &authelia-image ${AUTHELIA_IMAGE_TAG:-authelia/authelia:4.39.20@sha256:1b363e9279e742397966333f364e0876ae02bf5c876de73e83af6d48c57ff51b}
+  traefik: &traefik-image ${TRAEFIK_IMAGE_TAG:-traefik:${TRAEFIK_IMAGE_VERSION:-3.7@sha256:9c2a54d87f76f5c2f5f2682c68394af92fb12c0a2686798d6462a3f84bd78eaf}}
+  postgres: &postgres-image ${AUTHELIA_POSTGRES_IMAGE_TAG:-postgres:${AUTHELIA_POSTGRES_IMAGE_VERSION:-16@sha256:f1c3376c26f2609ab9f29f71f824103fe2fcd8ee0346485cb6122a4f93df6f94}}
+  redis: &redis-image ${AUTHELIA_REDIS_IMAGE_TAG:-redis:${AUTHELIA_REDIS_IMAGE_VERSION:-7.4@sha256:71da9275c5f3fcb97d0fa0c8c5b36cc995327265420f17a04bfd544f458059f7}}
+  authelia: &authelia-image ${AUTHELIA_IMAGE_TAG:-authelia/authelia:${AUTHELIA_IMAGE_VERSION:-4.39.20@sha256:1b363e9279e742397966333f364e0876ae02bf5c876de73e83af6d48c57ff51b}}
 
 networks:
   authelia-network:
