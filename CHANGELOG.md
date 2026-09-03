@@ -64,7 +64,7 @@ _(no unreleased changes yet)_
 - **`tests/e2e-backup-restore.sh`**: seven scenarios against the live
   stack, run by CI on every push: backup produced, readable, valid
   content, failure detected when the database is down, **restore
-  genuinely replaces database state**, prune keeps recent files.
+ replaces database state**, prune keeps recent files.
 
 ## [1.2.0] - 2026-09-02
 
@@ -110,8 +110,8 @@ v1.2.0.
 
 ### Changed
 
-- **Authelia 4.38 → 4.39.20**, **Traefik 3.2 → 3.7** (3.2's Docker client
-  cannot talk to Docker Engine 29), **PostgreSQL 16 digest-pinned**, and
+- **Authelia 4.38 → 4.39.20**, Traefik 3.2 → 3.7 (3.2's Docker client
+  cannot talk to Docker Engine 29), PostgreSQL 16 digest-pinned, and
   **Redis moved from the frozen `bitnami/redis` image to the official
   `redis:7.4`** (Bitnami's public images stopped updating with Broadcom's
   2025 catalog change). All pins live in the compose `x-images` block.

@@ -3,7 +3,7 @@
 [![Deployment Verification](https://github.com/heyvaldemar/authelia-traefik-letsencrypt-docker-compose/actions/workflows/deployment-verification.yml/badge.svg?branch=main)](https://github.com/heyvaldemar/authelia-traefik-letsencrypt-docker-compose/actions/workflows/deployment-verification.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-This repository deploys **Authelia** (single sign-on and two-factor authentication in front of the apps Traefik routes) with automatic **Let's Encrypt TLS**, backed by **PostgreSQL** and **Redis**. Traefik's `forwardauth` middleware is pre-wired: add one label to any service and it sits behind Authelia.
+This repository deploys Authelia (single sign-on and two-factor authentication in front of the apps Traefik routes) with automatic Let's Encrypt TLS, backed by PostgreSQL and Redis. Traefik's `forwardauth` middleware is pre-wired: add one label to any service and it sits behind Authelia.
 
 ## Getting started
 
@@ -129,7 +129,7 @@ Every service runs with `security_opt: no-new-privileges:true`, so a process can
 
 The [Deployment Verification](https://github.com/heyvaldemar/authelia-traefik-letsencrypt-docker-compose/actions/workflows/deployment-verification.yml?query=branch%3Amain) workflow runs on every push, pull request, and every day at 06:00 UTC: shellcheck + actionlint, Trivy scans of all four pinned images, the weekly freshness check, and a deploy-and-test job that generates fresh secrets, boots the stack, and requires `/api/health` to answer `OK` through Traefik.
 
-## Security Notes
+## Security notes
 
 - **Pre-rotation advisory.** Releases before v1.0.0 (2026-09-01) tracked the six secret files in git: session secret, storage encryption key, database and Redis passwords, JWT secret. If your deployment reused them, regenerate all six (`./generate-authelia-secrets.sh`) and restart. Changing the storage encryption key invalidates encrypted storage data (TOTP secrets, webauthn devices): run `authelia storage encryption change-key` to migrate, or reset the storage and re-enroll second factors.
 - The default access-control policy is `deny`: only rules you add grant access.
