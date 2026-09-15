@@ -9,7 +9,7 @@ x-images:
   traefik: &traefik-image ${TRAEFIK_IMAGE_TAG:-traefik:${TRAEFIK_IMAGE_VERSION:-3.7@sha256:f86a2cab1b5c649070c49f883c743dd32d8485a56e3368c5f93b9e91f1e91259}}
   postgres: &postgres-image ${AUTHELIA_POSTGRES_IMAGE_TAG:-postgres:${AUTHELIA_POSTGRES_IMAGE_VERSION:-16@sha256:f1c3376c26f2609ab9f29f71f824103fe2fcd8ee0346485cb6122a4f93df6f94}}
   redis: &redis-image ${AUTHELIA_REDIS_IMAGE_TAG:-redis:${AUTHELIA_REDIS_IMAGE_VERSION:-7.4@sha256:71da9275c5f3fcb97d0fa0c8c5b36cc995327265420f17a04bfd544f458059f7}}
-  authelia: &authelia-image ${AUTHELIA_IMAGE_TAG:-authelia/authelia:${AUTHELIA_IMAGE_VERSION:-4.39.26@sha256:16b804fbf6704b456ffb6e474c8e9d2406f9544ca0fecfeca7b4dcbed647deb4}}
+  authelia: &authelia-image ${AUTHELIA_IMAGE_TAG:-authelia/authelia:${AUTHELIA_IMAGE_VERSION:-4.39.27@sha256:40005803cd4e2eaeea4418517e9e9c7f515b55b31071a02829341ca2e50ca7c0}}
 
 networks:
   authelia-network:
