@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+_(no unreleased changes yet)_
+
+## [1.7.8] - 2026-09-17
+
 ### Changed
 
 - **`authelia/authelia:4.39.27` moved to `authelia/authelia:4.39.28`.** The freshness check reported the lag; the deploy job booted the stack on the new image before this landed.
@@ -194,7 +198,8 @@ v1.2.0.
   deploy-and-test job that generates fresh secrets, boots the stack, and
   requires `/api/health` to answer `OK` through Traefik.
 
-[Unreleased]: https://github.com/heyvaldemar/authelia-traefik-letsencrypt-docker-compose/compare/v1.7.7...HEAD
+[Unreleased]: https://github.com/heyvaldemar/authelia-traefik-letsencrypt-docker-compose/compare/v1.7.8...HEAD
+[1.7.8]: https://github.com/heyvaldemar/authelia-traefik-letsencrypt-docker-compose/compare/v1.7.7...v1.7.8
 [1.7.7]: https://github.com/heyvaldemar/authelia-traefik-letsencrypt-docker-compose/compare/v1.7.6...v1.7.7
 [1.7.6]: https://github.com/heyvaldemar/authelia-traefik-letsencrypt-docker-compose/compare/v1.7.5...v1.7.6
 [1.7.5]: https://github.com/heyvaldemar/authelia-traefik-letsencrypt-docker-compose/compare/v1.7.4...v1.7.5
