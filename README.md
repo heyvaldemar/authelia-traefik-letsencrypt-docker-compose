@@ -115,6 +115,8 @@ docker compose -p authelia logs backups | tail -5
 ./authelia-restore-database.sh
 ```
 
+It lists the backups and asks, or takes a file name as its argument; it reads every path and credential from the running backups container, and CI runs it on every push.
+
 **Off-host replication.** Dumps land in the `authelia-database-backups` named volume: if the host dies, backups die with it. Bind-mount the path to a host directory covered by your off-host backup solution (restic, rclone, Borg, S3 sync).
 
 ### Backup and restore, proven
