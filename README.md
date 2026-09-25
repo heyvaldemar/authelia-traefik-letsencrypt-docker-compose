@@ -1,6 +1,7 @@
 # Authelia + Traefik + Let's Encrypt on Docker Compose
 
 [![Deployment Verification](https://github.com/heyvaldemar/authelia-traefik-letsencrypt-docker-compose/actions/workflows/deployment-verification.yml/badge.svg?branch=main)](https://github.com/heyvaldemar/authelia-traefik-letsencrypt-docker-compose/actions/workflows/deployment-verification.yml)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/14866/badge)](https://www.bestpractices.dev/projects/14866)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 This repository deploys Authelia (single sign-on and two-factor authentication in front of the apps Traefik routes) with automatic Let's Encrypt TLS, backed by PostgreSQL and Redis. Traefik's `forwardauth` middleware is pre-wired: add one label to any service and it sits behind Authelia.
