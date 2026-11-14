@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+_(no unreleased changes yet)_
+
+## [1.8.19] - 2026-11-14
+
 ### Security
 
 - **`postgres:16` was rebuilt upstream**; the pin moved from `sha256:f9a7b9ebf6f5…` to `sha256:63e83b5a3dc3…`. Same version, same tag, a rebuilt base image — the usual shape of a security fix in a base layer.
@@ -382,7 +386,8 @@ v1.2.0.
   deploy-and-test job that generates fresh secrets, boots the stack, and
   requires `/api/health` to answer `OK` through Traefik.
 
-[Unreleased]: https://github.com/heyvaldemar/authelia-traefik-letsencrypt-docker-compose/compare/v1.8.18...HEAD
+[Unreleased]: https://github.com/heyvaldemar/authelia-traefik-letsencrypt-docker-compose/compare/v1.8.19...HEAD
+[1.8.19]: https://github.com/heyvaldemar/authelia-traefik-letsencrypt-docker-compose/compare/v1.8.18...v1.8.19
 [1.8.18]: https://github.com/heyvaldemar/authelia-traefik-letsencrypt-docker-compose/compare/v1.8.17...v1.8.18
 [1.8.17]: https://github.com/heyvaldemar/authelia-traefik-letsencrypt-docker-compose/compare/v1.8.16...v1.8.17
 [1.8.16]: https://github.com/heyvaldemar/authelia-traefik-letsencrypt-docker-compose/compare/v1.8.15...v1.8.16
