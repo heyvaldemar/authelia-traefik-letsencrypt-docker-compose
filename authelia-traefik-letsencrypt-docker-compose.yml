@@ -117,7 +117,12 @@ services:
     networks:
       - authelia-network
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      # redis-cli exits 0 on an error reply: with no password or a wrong one it
+      # prints NOAUTH or WRONGPASS and still exits 0, so the check reads the
+      # reply, not the exit code. The password goes to redis-cli in
+      # REDISCLI_AUTH, read from the mounted secret inside the check's shell,
+      # never in its arguments, which the host's ps shows every time it runs.
+      test: ["CMD-SHELL", "REDISCLI_AUTH=\"$$(cat /run/secrets/redis_password)\" redis-cli ping | grep -q PONG"]
       interval: 10s
       timeout: 5s
       retries: 3
